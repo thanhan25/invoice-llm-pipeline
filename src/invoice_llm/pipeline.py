@@ -22,9 +22,7 @@ class InvoiceParserRAGPipeline:
         self.training_path = training_path or os.getenv("INVOICE_FEEDBACK_PATH", "training_feedback.jsonl")
         self.vector_db_registry: List[Dict[str, Any]] = []
 
-        logger.info(
-            f"Initializing pipeline environment. Storage target layout configuration paths: Lake='{self.lake_directory}', Feedback='{self.training_path}'"
-        )
+        logger.info(f"Initializing pipeline. Lake='{self.lake_directory}', Feedback='{self.training_path}'")
 
         try:
             os.makedirs(self.lake_directory, exist_ok=True)
@@ -57,13 +55,11 @@ class InvoiceParserRAGPipeline:
                     }
                 )
 
-            logger.info(
-                f"Successfully processed and indexed document payload: ID='{file_id}', Generated Chunks={len(chunks)}"
-            )
+            logger.info(f"Processed document payload: ID='{file_id}', Chunks={len(chunks)}")
             return len(chunks)
         except Exception as e:
             if not isinstance(e, DocumentIngestionError):
-                raise DocumentIngestionError(f"System exception error encountered during file ingestion sequences: {e}")
+                raise DocumentIngestionError(f"System exception error encountered during file ingestion: {e}")
             raise
 
     def generate_few_shot_prompt(self, query_context: str) -> str:
@@ -75,16 +71,16 @@ class InvoiceParserRAGPipeline:
             raise LLMInferenceError("Cannot compile context configurations: Target context query values are empty.")
 
         few_shot_examples = (
-            "Example 1 Raw Text: 'INVOICE #994112 From: Berlin Tech Gmbh IBAN: DE89370400 Total: 119,00 EUR (includes 19% MwSt)'\n"
-            'Output: {"invoice_id": "994112", "vendor": "Berlin Tech Gmbh", "iban": "DE89370400", "tax_rate_pct": 19.0, "gross_amount": 119.00}\n'
+            "Example 1 Raw Text: 'INVOICE #994112 From: Berlin Tech Gmbh IBAN: DE89370400 Total: 119,00 EUR'\n"
+            'Output: {"invoice_id": "994112", "vendor": "Berlin Tech Gmbh", "iban": "DE89370400"}\n'
         )
 
         prompt_structure = (
-            "SYSTEM: You are a financial engineering parsing wizard. Extract targeting data fields "
-            "and output a verified JSON block matching structural constraint specification schemas. Do not return code blocks.\n"
+            "SYSTEM: You are a financial parsing engine. Extract targeting data fields "
+            "and output a verified JSON block matching structural constraints. Do not return code blocks.\n"
             f"FEW-SHOT CONTROLS:\n{few_shot_examples}\n"
             f"TARGET INGESTION PROFILE:\n{query_context}\n"
-            'CONSTRAINT SPECIFICATION SCHEMA: {"invoice_id": string, "vendor": string, "iban": string, "tax_rate_pct": float, "gross_amount": float}'
+            'SCHEMA: {"invoice_id": string, "vendor": string, "iban": string}'
         )
         return prompt_structure
 
@@ -124,19 +120,7 @@ class InvoiceParserRAGPipeline:
             with open(self.training_path, "a", encoding="utf-8") as f:
                 f.write(serialized_line + "\n")
 
-            logger.info("Human-in-the-loop verification transaction successfully appended to persistent file tracks.")
+            logger.info("Human-in-the-loop verification transaction successfully appended to file.")
             return serialized_line
         except Exception as e:
             raise FeedbackLoggingError(f"Persistent logging task caught critical file write failure: {e}")
-
-
-if __name__ == "__main__":
-    # Configure high-visibility debugging layout arrays when executed directly
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-    logger.info("Executing local execution tracing verify sequence baseline logs...")
-    pipeline = InvoiceParserRAGPipeline()
-    sample = "INVOICE #2026-X94 - Vendor: Finmatics Logistics Corp - IBAN: DE4450010022 - Gross Total: 1425.50"
-    pipeline.ingest_and_index_document("manual_run", sample)
-    out = pipeline.simulate_llm_inference(sample)
-    pipeline.log_human_feedback(sample, out, {"tax_rate_pct": 19.0})
-    logger.info("Execution trace test completed successfully.")
