@@ -32,7 +32,7 @@ jobs:
       run: black --check src tests
 
     - name: Enforce Syntax Linting (flake8)
-      run: flake8 src tests --count --max-line-length=120 --statistics
+      run: flake8 src tests --count --max-line-length=120 --ignore=E203 --statistics
 
     - name: Execute Automated Test Array & Verify Coverage Thresholds (pytest)
       run: pytest
